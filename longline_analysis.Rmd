@@ -1,0 +1,450 @@
+---
+title: "Chile - Catch Intention Analysis"
+author: "Laurie Baker"
+date: "6/14/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Libraries
+
+```{r}
+library(tidyverse)
+library(naniar)
+library(visdat)
+library(lubridate)
+library(ggridges)
+
+# install.packages("devtools")
+#devtools::install_github("dill/emoGG")
+library(emoGG)
+library(leaflet) # leaflet map
+```
+
+
+## Data
+
+Reading in and exploring the data.
+
+```{r, warning=FALSE}
+
+longline <- readxl::read_xlsx("data/longline97-2008.xlsx")
+
+```
+
+
+
+
+### lances.csv
+
+
+Data Dictionary:
+
+| Variable     | Description |
+| ----------- | ----------- |
+| identifier      | Unique Vessel Identifier |
+| vessel_code   | Vessel Code  |
+| vessel_code2   | Vessel Code (taking into account company?) |
+| vessel_code  | Name of Vessel |
+| gross_tonnage   | Gross tonnage of the vessel |
+| vessel_length   | Length of the Vessel (m)  |
+| vessel_width   | Vessel Width |
+| stanchion   | Stanchions on the vessel |
+| primary_engine_hp  | Horsepower of the primary engine |
+| second_engine_hp  | Horsepower of the second engine |
+| carrying_capacity  | The carrying capacity of the vessel (units?) |
+| year_constructed  | The year the vessel was constructed |
+| vessel_criteria  | The criteria for the vessel |
+| vessel_classification  | The classification of the vessel |
+
+
+## Exploring the vessels
+
+1. How many vessels are in the data set? What is the vessel code and name?
+
+**Vessel Code**
+```{r distinct vessel code}
+
+longline %>%
+  distinct(vessel_code)
+
+```
+
+
+**Vessel Code**
+```{r distinct name}
+
+longline %>%
+  distinct(vessel_code)
+
+```
+
+
+**Vessel Code2**
+
+```{r distinct vessel code2}
+
+longline %>%
+  distinct(vessel_code2)
+
+```
+
+
+
+2. How complete is the vessel data?
+
+
+```{r vessel data}
+longline %>%
+  select(vessel_code, 
+         vessel_code2, 
+         vessel_code, 
+         gross_tonnage, 
+         vessel_length, 
+         vessel_width, 
+         primary_engine_hp, 
+         second_engine_hp, 
+         carrying_capacity) %>%
+  visdat::vis_miss()
+
+```
+
+
+3. What are their dimensions (length, width, gross tonnage) and carrying capacity?
+
+```{r ship size and gross tonnage}
+
+longline %>%
+  group_by(vessel_code) %>%
+  distinct(vessel_code, vessel_length, vessel_width, gross_tonnage, carrying_capacity) %>%
+  ggplot(aes(x = vessel_width, y = vessel_length, label = vessel_code)) +
+  geom_point(aes(size = gross_tonnage)) +
+  geom_text(check_overlap = TRUE, 
+            size = 3,
+            hjust = 0, 
+            nudge_x = 0.1) +
+  lims(x = c(8, 10.5)) +
+  labs(x = "Vessel Width (m)", 
+       y = "Vessel Length (m)",
+       size = "Gross Tonnage (tonnes)")
+  
+```
+
+
+```{r ship size and carrying capacity}
+
+longline %>%
+  group_by(vessel_code) %>%
+  distinct(vessel_code, vessel_length, vessel_width, gross_tonnage, carrying_capacity) %>%
+  mutate(height = carrying_capacity,
+         width = carrying_capacity) %>%
+  ggplot(aes(x = vessel_width, y = vessel_length, label = vessel_code, size = I(carrying_capacity/6000))) +
+  geom_emoji(emoji = "26f4", show.legend = TRUE) +
+  geom_text(check_overlap = TRUE, 
+            size = 3,
+            hjust = 0, 
+            nudge_x = 0.1) +
+  lims(x = c(8, 10.5)) +
+  labs(x = "Vessel Width (m)", 
+       y = "Vessel Length (m)",
+       size = "Carrying Capacity")
+
+```
+
+Observations:
+- One of the ships has a small carrying capacity for its size.
+
+4. What is their vessel classification?
+
+```{r vessel classifications}
+longline %>%
+  select(vessel_code, 
+         gross_tonnage, 
+         vessel_length, 
+         vessel_width, 
+         vessel_classification, 
+         year_constructed) %>%
+  visdat::vis_miss()
+```
+
+```{r}
+unique(longline$vessel_classification)
+```
+Observations: vessel_classification doesn't give us any information. 
+
+```{r}
+longline %>%
+  group_by(vessel_code) %>%
+  distinct(vessel_code, vessel_length, vessel_width, gross_tonnage, carrying_capacity, year_constructed) 
+```
+
+5. When were they constructed?
+
+```{r year constructed}
+longline %>%
+  group_by(vessel_code) %>%
+  distinct(vessel_code, vessel_length, vessel_width, gross_tonnage, carrying_capacity, year_constructed) %>%
+  ggplot(aes(x = year_constructed, y = gross_tonnage, label = vessel_code)) +
+  geom_point(aes(size = carrying_capacity)) +
+  geom_text(check_overlap = TRUE, 
+            size = 3,
+            hjust = 0, 
+            nudge_x = 1) +
+  labs(x = "Year Constructed", 
+       y = "Gross Tonnage (tonnes)",
+       size = "Carrying Capacity") +
+  xlim(1965, 2000)
+```
+
+6. When were the boats active?
+
+```{r calculate trip duration}
+
+longline <- longline %>%
+  mutate(trip_return_date_clean = lubridate::as_datetime("1900-01-01") + days(round(trip_return_date)),
+         trip_leaving_date_clean = lubridate::as_datetime("1900-01-01") + days(round(trip_leaving_date)),
+         trip_duration = trip_return_date_clean - trip_leaving_date_clean,
+         vessel_code = as.factor(vessel_code)) # Not sure here what to use for the origin for the date.
+
+```
+
+
+7. How did the duration of trips vary by boat? by year?
+
+```{r}
+
+longline %>%
+  distinct(vessel_code, trip_number, .keep_all = TRUE) %>%
+  ggplot(aes(x = trip_duration, y = as.factor(vessel_code), fill = as.factor(vessel_code))) + 
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Trip Duration (Days)", 
+       fill = "Vessel Code")
+
+```
+Looking at the maximum number of trips made
+
+```{r}
+longline %>%
+  group_by(vessel_code) %>%
+  select(vessel_code, trip_number, trip_duration, haul_number) %>%
+  distinct(vessel_code, trip_number, haul_number, .keep_all = TRUE) %>%
+  summarise(max_number_trips = max(trip_number),
+            max_trip_duration = max(trip_duration),
+            min_trip_duration = min(trip_duration),
+            mean_trip_duration = round(mean(trip_duration), 2),
+            max_hauls = max(haul_number))
+```
+Doublecheck your workflow for this one to see if it makes sense.
+
+8. How did the haul weight vary for each ship over time?
+
+```{r}
+
+longline %>%
+  filter(total_capture_kg > 0 & total_capture_kg < 20000) %>%
+  ggplot(aes(x = total_capture_kg, y = vessel_code, fill = vessel_code)) + 
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Total Catch (1000 kg)", 
+       fill = "Vessel Code") +
+  facet_wrap(~Year) +
+  scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
+
+```
+
+### Fishing effort in hauls over time
+
+```{r}
+longline %>%
+  group_by(Year, vessel_code, Month) %>%
+  summarise(hauls = n()) %>%
+  ggplot(aes(x = Month, y = hauls, group = vessel_code, color = vessel_code)) +
+  geom_line() +
+  scale_color_viridis_d() + 
+  coord_polar() +
+  facet_wrap(~Year) +
+  labs(color = "Vessel Code")
+  
+```
+
+
+### Create an interactive map of fishing haul locations
+
+```{r}
+longline <- longline %>%
+  mutate(startlondd = -startlondd,
+         startlatdd = -startlatdd,
+         endlondd = -endlondd, 
+         endlatdd = -endlatdd,
+         group = as.factor(paste(vessel_code, trip_number, haul_number)))
+
+pal <- colorNumeric(
+  palette = "Oranges",
+  domain = longline$Genypterus_blacodes)
+
+(start_position_map <- leaflet(data = longline) %>%
+  addProviderTiles(providers$Esri.OceanBasemap) %>%
+  addCircleMarkers(lng = ~startlondd, lat = ~startlatdd, clusterOptions = NULL, color = ~pal(Genypterus_blacodes), radius = 2) %>%
+    addLegend(position = "bottomright",
+              pal = pal,
+              values = ~Genypterus_blacodes,
+              title = "Proportion of catch that is pink cusk-eel",
+              opacity = 1))
+
+
+(end_position_map <- leaflet(data = longline) %>%
+  addProviderTiles(providers$Esri.OceanBasemap) %>%
+  addCircleMarkers(lng = ~endlondd, lat = ~endlatdd, clusterOptions = NULL, color = ~pal(Genypterus_blacodes), radius = 2) %>%
+    addLegend(position = "bottomright",
+              pal = pal,
+              values = ~Genypterus_blacodes,
+              title = "Proportion of catch that is pink cusk-eel",
+              opacity = 1))
+
+  
+
+  
+```
+
+## Catch Composition: What are the most common species?
+
+What are the highest proportions of species across the different hauls?
+
+```{r}
+
+longline %>%
+  select(vessel_code, trip_number, leaving_port, landing_port, haul_number, total_catch, starts_with(match = "P_")) %>%
+  pivot_longer(cols = starts_with(match = "P_"), names_to = "prop_species", values_to = "proportion") %>%
+  filter(proportion > 0) %>%
+  group_by(vessel_code, trip_number) %>%
+  slice_max(order_by = proportion, n = 10) %>%
+  ungroup() %>%
+  select(prop_species) %>%
+  unique()
+
+```
+2. How often to species come up in the hauls?
+
+```{r}
+
+longline %>%
+  select(vessel_code, trip_number, leaving_port, landing_port, haul_number, total_catch, Merluccius_australis, Genypterus_blacodes, starts_with(match = "P_")) %>%
+  pivot_longer(cols = c(Merluccius_australis, starts_with(match = "P_"), Genypterus_blacodes), names_to = "prop_species", values_to = "proportion") %>%
+  filter(proportion > 0) %>%
+  group_by(prop_species) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+```
+
+How does the weight of congrio dorado and merluza_comun/meluza_del_sur vary in hauls?
+
+
+```{r}
+
+longline %>%
+  filter(total_capture_kg > 0 & total_capture_kg < 20000, vessel_name != "ISLA SOFIA") %>%
+  select(vessel_code, trip_number, leaving_port, landing_port, haul_number, total_catch, merluza_comun, congrio_dorado, merluza_del_sur, bacalao_de_profundidad, Year) %>%
+  pivot_longer(cols = c(merluza_comun, congrio_dorado, merluza_del_sur, bacalao_de_profundidad), names_to = "species", values_to = "weight_kg") %>%
+  ggplot(aes(x = weight_kg, y = vessel_code, fill = species)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Weight (kg)", 
+       fill = "Species") #+
+  #scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
+```
+
+What does the fishing information look like?
+
+```{r}
+visdat::vis_dat(longline[, c("J_time_line_set", "J_time_laying_line", "J_time_start_haul", "J_time_end_haul", "c_laying_time", "c_soak_time", "c_haul_time", "min_depth", "max_depth", "mid_depth", "max_min", "hook_type", "number_of_hooks", "bait", "hook_size")])
+```
+
+
+What is the range in the soak time?
+
+```{r}
+longline %>%
+  filter(total_capture_kg > 0 & total_capture_kg < 20000, vessel_name != "ISLA SOFIA") %>%
+  ggplot(aes(x = c_soak_time, y = vessel_code)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Soak Time (hours)") 
+```
+What is the range in haul time?
+
+
+```{r}
+longline %>%
+  filter(total_capture_kg > 0 & total_capture_kg < 20000, vessel_name != "ISLA SOFIA") %>%
+  ggplot(aes(x = c_haul_time, y = vessel_code)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Haul Time (hours)") 
+```
+
+What is the range in the min depth?
+
+```{r}
+longline %>%
+  filter(total_capture_kg > 0 & total_capture_kg < 20000, vessel_name != "ISLA SOFIA") %>%
+  ggplot(aes(x = min_depth, y = vessel_code)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Min Depth (m)") 
+```
+
+What is the range in the max depth?
+
+```{r}
+longline %>%
+  filter(total_capture_kg > 0 & total_capture_kg < 20000, vessel_name != "ISLA SOFIA") %>%
+  ggplot(aes(x = max_depth, y = vessel_code)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Max Depth (m)") +
+  facet_wrap(~man_zone)
+```
+
+
+What is the range in the mid depth?
+
+```{r}
+longline %>%
+  filter(total_capture_kg > 0 & total_capture_kg < 20000, vessel_name != "ISLA SOFIA") %>%
+  ggplot(aes(x = mid_depth, y = vessel_code)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Mid Depth (m)") +
+  facet_wrap(~man_zone)
+```
+
+Looking at the hauls and filtering out only the groups that have the most:
+
+```{r}
+
+longline %>%
+  select(vessel_code, vessel_name, trip_number, leaving_port, landing_port, haul_number, total_catch, Merluccius_australis, Genypterus_blacodes, starts_with(match = "P_"), man_zone) %>%
+  pivot_longer(cols = c(Merluccius_australis, starts_with(match = "P_"), Genypterus_blacodes), names_to = "prop_species", values_to = "proportion") %>%
+  filter(proportion > 0, prop_species %in% c("Genypterus_blacodes", "Merluccius_australis", "P_bacalao.1", "P_cojinoba.2", "P_reineta", "P_brotula", "P_cab2", "P_merluza1", "P_coji"), vessel_name != "ISLA SOFIA") %>%
+  ggplot(aes(x = proportion, y = vessel_code, fill = prop_species)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Proportion of Catch") +
+  facet_wrap(~man_zone)
+  
+
+```
