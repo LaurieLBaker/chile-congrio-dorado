@@ -4,7 +4,7 @@
 
 # Data set
 
-*.xlsx
+data/*.xlsx
 
 # Session Data files
 .RData
