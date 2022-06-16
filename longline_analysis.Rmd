@@ -17,6 +17,7 @@ library(naniar)
 library(visdat)
 library(lubridate)
 library(ggridges)
+library(htmltools)
 
 # install.packages("devtools")
 #devtools::install_github("dill/emoGG")
@@ -38,7 +39,7 @@ longline <- readxl::read_xlsx("data/longline97-2008.xlsx")
 
 
 
-### lances.csv
+### longline97-2008.csv
 
 
 Data Dictionary:
@@ -63,16 +64,7 @@ Data Dictionary:
 
 ## Exploring the vessels
 
-1. How many vessels are in the data set? What is the vessel code and name?
-
-**Vessel Code**
-```{r distinct vessel code}
-
-longline %>%
-  distinct(vessel_code)
-
-```
-
+1. How many vessels are in the data set? What is the vessel code?
 
 **Vessel Code**
 ```{r distinct name}
@@ -113,7 +105,7 @@ longline %>%
 ```
 
 
-3. What are their dimensions (length, width, gross tonnage) and carrying capacity?
+3. What are their dimensions (length, width, gross tonnage) and carrying capacity? What is the relationship between these variables?
 
 ```{r ship size and gross tonnage}
 
@@ -154,8 +146,13 @@ longline %>%
 
 ```
 
-Observations:
-- One of the ships has a small carrying capacity for its size.
+**Observations:**
+
+* One of the ships has a small carrying capacity for its size. One of the ships is much smaller than the others: 400082. 
+
+* There is also one vessel for which we are missing a vessel code.
+
+* Vessel 400088 has only 2 entries.
 
 4. What is their vessel classification?
 
@@ -173,7 +170,10 @@ longline %>%
 ```{r}
 unique(longline$vessel_classification)
 ```
-Observations: vessel_classification doesn't give us any information. 
+
+**Observations:** 
+
+* vessel_classification doesn't give us any information. 
 
 ```{r}
 longline %>%
@@ -181,7 +181,7 @@ longline %>%
   distinct(vessel_code, vessel_length, vessel_width, gross_tonnage, carrying_capacity, year_constructed) 
 ```
 
-5. When were they constructed?
+5. When were the vessels constructed?
 
 ```{r year constructed}
 longline %>%
@@ -199,7 +199,7 @@ longline %>%
   xlim(1965, 2000)
 ```
 
-6. When were the boats active?
+6. When were the vessels active?
 
 ```{r calculate trip duration}
 
@@ -211,6 +211,21 @@ longline <- longline %>%
 
 ```
 
+```{r}
+
+longline %>%
+  distinct(vessel_code, trip_number, .keep_all = TRUE) %>%
+  ggplot() +
+  geom_point(aes(x = trip_leaving_date_clean, y = vessel_code)) +
+  geom_point(aes(x = trip_return_date_clean, y = vessel_code)) +
+  labs(y = "Vessel Code", x = "Date")
+  
+
+```
+
+**Observations**
+
+* We have a lot more data early on in the 1997-2001 period than in the second management period.
 
 7. How did the duration of trips vary by boat? by year?
 
@@ -226,7 +241,8 @@ longline %>%
        fill = "Vessel Code")
 
 ```
-Looking at the maximum number of trips made
+
+What were the trip statistics (number of trips made and the minimum, mean, and maximum trip duration)?
 
 ```{r}
 longline %>%
@@ -264,7 +280,10 @@ longline %>%
 longline %>%
   group_by(Year, vessel_code, Month) %>%
   summarise(hauls = n()) %>%
-  ggplot(aes(x = Month, y = hauls, group = vessel_code, color = vessel_code)) +
+  ggplot(aes(x = Month, 
+             y = hauls, 
+             group = vessel_code, 
+             color = vessel_code)) +
   geom_line() +
   scale_color_viridis_d() + 
   coord_polar() +
@@ -273,10 +292,27 @@ longline %>%
   
 ```
 
+The same plot above without the coord_polar
+
+```{r}
+longline %>%
+  group_by(Year, vessel_code, Month) %>%
+  summarise(hauls = n()) %>%
+  ggplot(aes(x = Month, 
+             y = hauls, 
+             group = vessel_code, 
+             color = vessel_code)) +
+  geom_line() +
+  scale_color_viridis_d() + 
+  facet_wrap(~Year) +
+  labs(color = "Vessel Code")
+  
+```
 
 ### Create an interactive map of fishing haul locations
 
-```{r}
+
+```{r location data prep}
 longline <- longline %>%
   mutate(startlondd = -startlondd,
          startlatdd = -startlatdd,
@@ -284,23 +320,56 @@ longline <- longline %>%
          endlatdd = -endlatdd,
          group = as.factor(paste(vessel_code, trip_number, haul_number)))
 
+```
+
+
+```{r}
 pal <- colorNumeric(
   palette = "Oranges",
   domain = longline$Genypterus_blacodes)
 
+
+longline$labels <- sprintf("<strong>Vessel Code: %s</strong><br/>%g proportion of catch", 
+                  longline$vessel_code, longline$Genypterus_blacodes) %>% lapply(htmltools::HTML)
+
 (start_position_map <- leaflet(data = longline) %>%
   addProviderTiles(providers$Esri.OceanBasemap) %>%
-  addCircleMarkers(lng = ~startlondd, lat = ~startlatdd, clusterOptions = NULL, color = ~pal(Genypterus_blacodes), radius = 2) %>%
+  addCircleMarkers(data = longline[longline$vessel_code == 400062,], 
+                   lng = ~startlondd, 
+                   lat = ~startlatdd, 
+                   clusterOptions = NULL, 
+                   color = ~pal(Genypterus_blacodes), 
+                   label = longline$labels,
+                   radius = 2,
+                   group = "Vessel 400062") %>%
+      addCircleMarkers(data = longline[longline$vessel_code == 400065,], 
+                       lng = ~startlondd, 
+                   lat = ~startlatdd, 
+                   clusterOptions = NULL, 
+                   color = ~pal(Genypterus_blacodes), 
+                   label = longline$labels,
+                   radius = 2,
+                   group = "Vessel 400065") %>%
     addLegend(position = "bottomright",
               pal = pal,
               values = ~Genypterus_blacodes,
               title = "Proportion of catch that is pink cusk-eel",
-              opacity = 1))
+              opacity = 1)) %>%
+    addLayersControl(
+    overlayGroups = c("Vessel 400065", "Vessel 400062"),
+    options = layersControlOptions(collapsed = FALSE)
+    )
+
 
 
 (end_position_map <- leaflet(data = longline) %>%
   addProviderTiles(providers$Esri.OceanBasemap) %>%
-  addCircleMarkers(lng = ~endlondd, lat = ~endlatdd, clusterOptions = NULL, color = ~pal(Genypterus_blacodes), radius = 2) %>%
+  addCircleMarkers(lng = ~endlondd, 
+                   lat = ~endlatdd, 
+                   clusterOptions = NULL, 
+                   color = ~pal(Genypterus_blacodes),
+                   label = longline$labels,
+                   radius = 2) %>%
     addLegend(position = "bottomright",
               pal = pal,
               values = ~Genypterus_blacodes,
@@ -329,7 +398,8 @@ longline %>%
   unique()
 
 ```
-2. How often to species come up in the hauls?
+
+2. How often do species come up in the hauls? Presence/Absence
 
 ```{r}
 
@@ -361,7 +431,7 @@ longline %>%
   #scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
 ```
 
-What does the fishing information look like?
+How complete is the fishing information?
 
 ```{r}
 visdat::vis_dat(longline[, c("J_time_line_set", "J_time_laying_line", "J_time_start_haul", "J_time_end_haul", "c_laying_time", "c_soak_time", "c_haul_time", "min_depth", "max_depth", "mid_depth", "max_min", "hook_type", "number_of_hooks", "bait", "hook_size")])
@@ -379,6 +449,7 @@ longline %>%
   labs(y = "Vessel Code",
        x = "Soak Time (hours)") 
 ```
+
 What is the range in haul time?
 
 
