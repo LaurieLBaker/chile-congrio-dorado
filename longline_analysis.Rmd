@@ -2,7 +2,10 @@
 title: "Chile - Catch Intention Analysis"
 author: "Laurie Baker"
 date: "6/14/2022"
-output: html_document
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -18,6 +21,8 @@ library(visdat)
 library(lubridate)
 library(ggridges)
 library(htmltools)
+library(readr)
+library(forcats)
 
 # install.packages("devtools")
 #devtools::install_github("dill/emoGG")
@@ -34,13 +39,16 @@ Reading in and exploring the data.
 
 longline <- readxl::read_xlsx("data/longline97-2008.xlsx")
 
+palangre87_97 <- read_csv("data/palangre_87_97 - palangre_87_97.csv")
+
+palangre97_18 <- read_csv("data/palangre_97_18 - palangre_97_18.csv")
+
 ```
 
 
 
 
 ### longline97-2008.csv
-
 
 Data Dictionary:
 
@@ -61,13 +69,70 @@ Data Dictionary:
 | vessel_criteria  | The criteria for the vessel |
 | vessel_classification  | The classification of the vessel |
 
+### palangre_87_97 - palangre_87_97.csv
+
+The data has `r nrow(palangre87_97)` observations and `r ncol(palangre87_97)` variables.
+
+Data Dictionary:
+
+| Variable     | Description |
+| ----------- | ----------- |
+| CBU_ORAC | Vessel Code: 76 vessels |
+| crucero  | Trip? Range: 1-55 |
+| pesqueria   | Fishery |
+| fecha | Date |
+| Dia   | Day |
+| Mes   | Month  |
+| Year  | Year |
+| lance  | Haul |
+| latcalini  | Latitude |
+| loncalini | Longitude |
+| aquas  | Waters (management zone?) |
+| zmin | Minimum depth (m) |
+| zmax  | Maximum depth (m) |
+| nanzuelo | Number of hooks (anzuelos) |
+| lonlmad | Mid longitude |
+| Total.de.peso | Total weight (kg) |
+| X0 - X999 | Fish Species (see reference table) |
+
+### palangre_97_18 - palangre_97_18.csv
+
+The data has `r nrow(palangre97_18)` observations and `r ncol(palangre97_18)` variables.
+
+Data Dictionary:
+
+| Variable     | Description |
+| ----------- | ----------- |
+| CBU_ORAC | Vessel Code: 76 vessels |
+| crucero  | Trip? Range: 1-55 |
+| pesqueria   | Fishery |
+| fecha | Date |
+| Dia   | Day |
+| Mes   | Month  |
+| Year  | Year |
+| lance  | Haul |
+| latcalini  | Latitude |
+| loncalini | Longitude |
+| latcalini_new  | Latitude (new)|
+| loncalini_new | Longitude (new) |
+| aquas  | Waters (management zone?) |
+| zmin | Minimum depth (m) |
+| zmax  | Maximum depth (m) |
+| nanzuelo | Number of hooks (anzuelos) |
+| zmin_new | Minimum depth (m) new |
+| zmax_new  | Maximum depth (m) new |
+| lonlmad | Mid longitude |
+| Total.de.peso | Total weight (kg) |
+| X0 - X999 | Fish Species (see reference table) |
+
+# Part I: Longline Data
 
 ## Exploring the vessels
 
 1. How many vessels are in the data set? What is the vessel code?
 
 **Vessel Code**
-```{r distinct name}
+```{r vessels}
 
 longline %>%
   distinct(vessel_code)
@@ -201,7 +266,7 @@ longline %>%
 
 6. When were the vessels active?
 
-```{r calculate trip duration}
+```{r calculate trip duration longline}
 
 longline <- longline %>%
   mutate(trip_return_date_clean = lubridate::as_datetime("1900-01-01") + days(round(trip_return_date)),
@@ -312,7 +377,7 @@ longline %>%
 ### Create an interactive map of fishing haul locations
 
 
-```{r location data prep}
+```{r location data prep longline}
 longline <- longline %>%
   mutate(startlondd = -startlondd,
          startlatdd = -startlatdd,
@@ -455,8 +520,8 @@ What are the highest proportions of species across the different hauls?
 ```{r}
 
 longline %>%
-  select(vessel_code, trip_number, leaving_port, landing_port, haul_number, total_catch, starts_with(match = "P_")) %>%
-  pivot_longer(cols = starts_with(match = "P_"), names_to = "prop_species", values_to = "proportion") %>%
+  select(vessel_code, trip_number, leaving_port, landing_port, haul_number, Genypterus_blacodes, Merluccius_australis, total_catch, starts_with(match = "P_")) %>%
+  pivot_longer(cols = c(Merluccius_australis, starts_with(match = "P_"), Genypterus_blacodes), names_to = "prop_species", values_to = "proportion") %>%
   filter(proportion > 0) %>%
   group_by(vessel_code, trip_number) %>%
   slice_max(order_by = proportion, n = 10) %>%
@@ -586,3 +651,943 @@ longline %>%
   
 
 ```
+
+
+Looking at the haul proportions:
+
+```{r}
+
+longline %>%
+  select(vessel_code, trip_number, leaving_port, landing_port, haul_number, Genypterus_blacodes, Merluccius_australis, total_catch, starts_with(match = "P_")) %>%
+  pivot_longer(cols = c(Merluccius_australis, starts_with(match = "P_"), Genypterus_blacodes), names_to = "prop_species", values_to = "proportion") %>%
+  filter(proportion > 0) %>%
+  group_by(vessel_code, trip_number)
+  
+```
+
+
+# Part II: Palangre 87-97 Data
+
+## Exploring the vessels
+
+1. How many vessels are in the data set?
+
+**Vessel Code**
+```{r distinct name 87 to 97}
+
+palangre87_97 %>%
+  distinct(CBU_ORAC)
+
+```
+
+2. When were the vessels active?
+
+```{r calculate trip duration}
+
+palangre87_97 <- palangre87_97 %>%
+  mutate(fecha = lubridate::dmy(fecha),
+         CBU_ORAC = as.factor(CBU_ORAC)) 
+
+```
+
+```{r}
+str(palangre87_97$fecha)
+```
+
+
+```{r}
+
+ggplot(data = palangre87_97) +
+  geom_density_ridges(aes(x = fecha, y = CBU_ORAC, fill = CBU_ORAC), alpha = 0.75) +
+  labs(y = "Vessel Code", x = "Date")
+  
+
+```
+
+7. How did the duration of trips vary by boat? by year?
+
+```{r, eval = FALSE}
+
+palangre87_97 %>%
+  distinct(CBU_ORAC, trip_number, .keep_all = TRUE) %>%
+  ggplot(aes(x = trip_duration, y = as.factor(vessel_code), fill = as.factor(vessel_code))) + 
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Trip Duration (Days)", 
+       fill = "Vessel Code")
+
+```
+
+What were the trip statistics (number of trips made and the minimum, mean, and maximum trip duration)?
+
+```{r, eval = FALSE}
+palangre87_97 %>%
+  group_by(vessel_code) %>%
+  select(vessel_code, trip_number, trip_duration, haul_number) %>%
+  distinct(vessel_code, trip_number, haul_number, .keep_all = TRUE) %>%
+  summarise(max_number_trips = max(trip_number),
+            max_trip_duration = max(trip_duration),
+            min_trip_duration = min(trip_duration),
+            mean_trip_duration = round(mean(trip_duration), 2),
+            max_hauls = max(haul_number))
+```
+Doublecheck your workflow for this one to see if it makes sense.
+
+8. How did the haul weight vary for each ship over time?
+
+```{r}
+
+palangre87_97 %>%
+  filter(Total.de.peso >= 0, Year <= 1992) %>%
+  drop_na(CBU_ORAC) %>%
+  ggplot(aes(x = Total.de.peso, y = CBU_ORAC, fill = CBU_ORAC)) + 
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Total Catch (1000 kg)", 
+       fill = "Vessel Code") +
+  facet_wrap(~Year) +
+  scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
+```
+
+
+```{r}
+palangre87_97 %>%
+  filter(Total.de.peso > 0, Year > 1992) %>%
+  ggplot(aes(x = Total.de.peso, y = CBU_ORAC, fill = CBU_ORAC)) + 
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Total Catch (1000 kg)", 
+       fill = "Vessel Code") +
+  facet_wrap(~Year) +
+  scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
+
+```
+
+### Fishing effort in hauls over time
+
+```{r}
+palangre87_97 %>%
+  group_by(Year, CBU_ORAC, Mes) %>%
+  summarise(hauls = n()) %>%
+  ggplot(aes(x = Mes, 
+             y = hauls, 
+             group = CBU_ORAC, 
+             color = CBU_ORAC)) +
+  geom_line() +
+  scale_color_viridis_d() + 
+  coord_polar() +
+  facet_wrap(~Year) +
+  labs(color = "Vessel Code")
+  
+```
+
+The same plot above without the coord_polar
+
+```{r}
+palangre87_97 %>%
+  group_by(Year, CBU_ORAC, Mes) %>%
+  summarise(hauls = n()) %>%
+  ggplot(aes(x = Mes, 
+             y = hauls, 
+             group = CBU_ORAC, 
+             color = CBU_ORAC)) +
+  geom_line() +
+  scale_color_viridis_d() + 
+  facet_wrap(~Year) +
+  labs(color = "Vessel Code") +
+  scale_x_continuous(breaks = c(3, 6, 9, 12))
+  
+```
+
+### How much has each vessel fished?
+
+```{r}
+
+palangre87_97 %>%
+  group_by(CBU_ORAC) %>%
+  summarise(hauls = n()) %>%
+  ggplot(aes(x = fct_reorder(CBU_ORAC, hauls),
+             y = hauls)) +
+  geom_col() +
+  scale_color_viridis_d() +
+  coord_flip() +
+  labs(x = "Vessel Code")
+
+```
+
+
+
+### Create an interactive map of fishing haul locations
+
+
+```{r location data prep 87 to 97}
+palangre87_97 <- palangre87_97 %>%
+  mutate(startlatdd = -latcalini/10000,
+         startlondd = -loncalini/10000,
+         group = as.factor(paste(CBU_ORAC, crucero, lance)),
+         P_X6 = X6/Total.de.peso)
+
+```
+
+
+```{r}
+pal <- colorNumeric(
+  palette = "Oranges",
+  domain = palangre87_97$P_X6)
+
+
+palangre87_97$labels <- sprintf("<strong>Vessel Code: %s</strong><br/>%g proportion of catch", 
+                  palangre87_97$CBU_ORAC, palangre87_97$P_X6) %>% lapply(htmltools::HTML)
+
+(start_position_map <- leaflet(data = palangre87_97) %>%
+  addProviderTiles(providers$Esri.OceanBasemap) %>%
+  addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400062,], 
+                   lng = ~startlondd, 
+                   lat = ~startlatdd, 
+                   clusterOptions = NULL, 
+                   color = ~pal(P_X6), 
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400062,]$labels,
+                   radius = 2,
+                   group = "Vessel 400062") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400065,], 
+                   lng = ~startlondd, 
+                   lat = ~startlatdd, 
+                   clusterOptions = NULL, 
+                   color = ~pal(P_X6), 
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400065,]$labels,
+                   radius = 2,
+                   group = "Vessel 400065") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400075,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400075,]$labels,
+                   radius = 2,
+                   group = "Vessel 400075") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400082,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400082,]$labels,
+                   radius = 2,
+                   group = "Vessel 400082") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400088,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400088,]$labels,
+                   radius = 2,
+                   group = "Vessel 400088") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400118,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400118,]$labels,
+                   radius = 2,
+                   group = "Vessel 400118") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400061,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400061,]$labels,
+                   radius = 2,
+                   group = "Vessel 400061") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400081,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400081,]$labels,
+                   radius = 2,
+                   group = "Vessel 400081") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400133,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400133,]$labels,
+                   radius = 2,
+                   group = "Vessel 400133") %>%
+    addCircleMarkers(data = palangre87_97[palangre87_97$CBU_ORAC == 400512,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre87_97[palangre87_97$CBU_ORAC == 400512,]$labels,
+                   radius = 2,
+                   group = "Vessel 400512") %>%
+    addLegend(position = "bottomright",
+              pal = pal,
+              values = ~P_X6,
+              title = "Proportion of catch that is pink cusk-eel",
+              opacity = 1)) %>%
+    addLayersControl(
+    overlayGroups = c("Vessel 400065", "Vessel 400062", "Vessel 400075",
+                      "Vessel 400082", "Vessel 400088", "Vessel 400118",
+                      "Vessel 400061", "Vessel 400081", "Vessel 400133",
+                      "Vessel 400512"),
+    options = layersControlOptions(collapsed = FALSE)
+    )
+```
+
+## Catch Composition: What are the most common species?
+
+What are the highest proportions of species across the different hauls?
+
+```{r}
+
+palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(CBU_ORAC, Year) %>%
+  arrange(desc(peso)) %>%
+  distinct(species_code, .keep_all = TRUE) %>%
+  slice_max(order_by = peso, n = 5) %>%
+  ungroup() %>%
+  select(species_code) %>%
+  unique()
+
+```
+
+Organized by proportion
+
+```{r}
+
+palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(CBU_ORAC, Year) %>%
+  arrange(desc(prop)) %>%
+  distinct(species_code, .keep_all = TRUE) %>%
+  slice_max(order_by = prop, n = 5) %>%
+  ungroup() %>%
+  select(species_code) %>%
+  unique()
+```
+
+2. How often do species come up in the hauls? Presence/Absence
+
+```{r}
+
+palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+```
+```{r}
+species_list <- palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  select(species_code)
+
+
+species_list_100 <- palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  filter(n >= 100) %>%
+  arrange(desc(n)) %>%
+  select(species_code)
+
+species_list_1000 <- palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  filter(n >= 1000) %>%
+  arrange(desc(n)) %>%
+  select(species_code)
+
+
+species_list_10000 <- palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  filter(n >= 10000) %>%
+  arrange(desc(n)) %>%
+  select(species_code)
+```
+
+```{r}
+
+palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0, species_code %in% c(species_list_10000$species_code)) %>%
+  group_by(Year, species_code) %>%
+  summarise(species_weight = sum(peso)) %>%
+  ggplot() +
+  geom_area(aes(x = Year, y = species_weight, fill = species_code, group = species_code), alpha = 0.7) +
+  scale_color_viridis_d() +
+  labs(fill = "Species Code",
+       y = "Species Weight (kg)")
+
+```
+```{r}
+
+palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(species_code %in% species_list_1000$species_code) %>%
+  filter(peso > 0, !(species_code %in% c(species_list_10000$species_code))) %>%
+  group_by(Year, species_code) %>%
+  summarise(species_weight = sum(peso)) %>%
+  ggplot() +
+  geom_area(aes(x = Year, y = species_weight, fill = species_code, group = species_code), alpha = 0.7) +
+  scale_color_viridis_d() +
+  labs(fill = "Species Code",
+       y = "Species Weight (kg)")
+
+```
+
+How does the weight of congrio dorado and merluza_comun/meluza_del_sur vary in hauls?
+
+
+```{r}
+
+palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(Total.de.peso > 0, Total.de.peso < 20000, species_code %in% c("X2", "X6")) %>%
+  ggplot(aes(x = peso, y = as.factor(species_code), fill = as.factor(species_code))) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Weight (1000 kgs)", 
+       fill = "Species") +
+  facet_wrap(~Year) +
+  scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
+```
+What is the range in the min depth?
+
+```{r}
+palangre87_97 %>%
+  filter(Total.de.peso > 0 & Total.de.peso < 20000,
+         zmin < 2500) %>%
+  ggplot(aes(x = zmin, y = CBU_ORAC)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Min Depth (m)") 
+```
+
+What is the range in the max depth?
+
+```{r}
+palangre87_97 %>%
+  filter(Total.de.peso > 0 & Total.de.peso < 20000,
+         zmax < 2500) %>%
+  ggplot(aes(x = zmax, y = CBU_ORAC)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Min Depth (m)") 
+```
+
+
+Looking at the hauls and filtering out only the groups that have the most:
+
+```{r}
+
+palangre87_97 %>%
+  select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0, species_code %in% c(species_list_10000$species_code), CBU_ORAC %in% c(unique(longline$vessel_code))) %>%
+  ggplot(aes(x = prop, y = CBU_ORAC, fill = species_code)) +
+  ggridges::geom_density_ridges(alpha = 0.5) +
+  scale_color_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Proportion of Catch",
+       fill = "Species Code")
+  
+```
+
+
+# Part III: palangre 1997-2018
+
+## Exploring the vessels
+
+1. How many vessels are in the data set?
+
+**Vessel Code**
+```{r distinct name}
+
+palangre97_18 %>%
+  distinct(CBU_ORAC)
+
+```
+
+2. When were the vessels active?
+
+```{r calculate trip duration 97 to 18}
+
+palangre97_18 <- palangre97_18 %>%
+  mutate(fecha = lubridate::dmy(fecha),
+         CBU_ORAC = as.factor(CBU_ORAC)) %>%
+  filter(Year < 2030, Year > 1991)
+
+```
+
+```{r}
+str(palangre97_18$fecha)
+```
+
+
+```{r}
+
+ggplot(data = palangre97_18) +
+  geom_density_ridges(aes(x = fecha, y = CBU_ORAC, fill = CBU_ORAC), alpha = 0.75) +
+  labs(y = "Vessel Code", x = "Date")
+  
+
+```
+
+7. How did the duration of trips vary by boat? by year?
+
+```{r, eval = FALSE}
+
+palangre97_18 %>%
+  distinct(CBU_ORAC, trip_number, .keep_all = TRUE) %>%
+  ggplot(aes(x = trip_duration, y = as.factor(vessel_code), fill = as.factor(vessel_code))) + 
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Trip Duration (Days)", 
+       fill = "Vessel Code")
+
+```
+
+What were the trip statistics (number of trips made and the minimum, mean, and maximum trip duration)?
+
+```{r, eval = FALSE}
+palangre97_18 %>%
+  group_by(vessel_code) %>%
+  select(vessel_code, trip_number, trip_duration, haul_number) %>%
+  distinct(vessel_code, trip_number, haul_number, .keep_all = TRUE) %>%
+  summarise(max_number_trips = max(trip_number),
+            max_trip_duration = max(trip_duration),
+            min_trip_duration = min(trip_duration),
+            mean_trip_duration = round(mean(trip_duration), 2),
+            max_hauls = max(haul_number))
+```
+Doublecheck your workflow for this one to see if it makes sense.
+
+8. How did the haul weight vary for each ship over time?
+
+```{r}
+
+palangre97_18 %>%
+  filter(Total.de.peso >= 0, Year <= 2002) %>%
+  drop_na(CBU_ORAC) %>%
+  ggplot(aes(x = Total.de.peso, y = CBU_ORAC, fill = CBU_ORAC)) + 
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Total Catch (1000 kg)", 
+       fill = "Vessel Code") +
+  facet_wrap(~Year) +
+  scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
+```
+
+
+```{r}
+palangre97_18 %>%
+  filter(Total.de.peso > 0, Year > 2002) %>%
+  ggplot(aes(x = Total.de.peso, y = CBU_ORAC, fill = CBU_ORAC)) + 
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Total Catch (1000 kg)", 
+       fill = "Vessel Code") +
+  facet_wrap(~Year) +
+  scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
+
+```
+
+### Fishing effort in hauls over time
+
+```{r}
+palangre97_18 %>%
+  group_by(Year, CBU_ORAC, Mes) %>%
+  summarise(hauls = n()) %>%
+  ggplot(aes(x = Mes, 
+             y = hauls, 
+             group = CBU_ORAC, 
+             color = CBU_ORAC)) +
+  geom_line() +
+  scale_color_viridis_d() + 
+  facet_wrap(~Year) +
+  labs(color = "Vessel Code") +
+  scale_x_continuous(breaks = c(3, 6, 9, 12))
+  
+```
+
+### How much has each vessel fished?
+
+```{r}
+
+palangre97_18 %>%
+  group_by(CBU_ORAC) %>%
+  summarise(hauls = n()) %>%
+  ggplot(aes(x = fct_reorder(CBU_ORAC, hauls),
+             y = hauls)) +
+  geom_col() +
+  scale_color_viridis_d() +
+  coord_flip() +
+  labs(x = "Vessel Code")
+
+```
+
+
+
+### Create an interactive map of fishing haul locations
+
+
+```{r location data prep}
+palangre97_18 <- palangre97_18 %>%
+  mutate(startlatdd = -latcalini/10000,
+         startlondd = -loncalini/10000,
+         group = as.factor(paste(CBU_ORAC, pesqueria, lance)),
+         P_X6 = X6/Total.de.peso)
+
+```
+
+
+```{r}
+pal <- colorNumeric(
+  palette = "Oranges",
+  domain = palangre97_18$P_X6)
+
+
+palangre97_18$labels <- sprintf("<strong>Vessel Code: %s</strong><br/>%g proportion of catch", 
+                  palangre97_18$CBU_ORAC, palangre97_18$P_X6) %>% lapply(htmltools::HTML)
+
+(start_position_map <- leaflet(data = palangre97_18) %>%
+  addProviderTiles(providers$Esri.OceanBasemap) %>%
+  addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400062,], 
+                   lng = ~startlondd, 
+                   lat = ~startlatdd, 
+                   clusterOptions = NULL, 
+                   color = ~pal(P_X6), 
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400062,]$labels,
+                   radius = 2,
+                   group = "Vessel 400062") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400065,], 
+                   lng = ~startlondd, 
+                   lat = ~startlatdd, 
+                   clusterOptions = NULL, 
+                   color = ~pal(P_X6), 
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400065,]$labels,
+                   radius = 2,
+                   group = "Vessel 400065") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400075,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400075,]$labels,
+                   radius = 2,
+                   group = "Vessel 400075") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400082,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400082,]$labels,
+                   radius = 2,
+                   group = "Vessel 400082") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400088,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400088,]$labels,
+                   radius = 2,
+                   group = "Vessel 400088") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400118,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400118,]$labels,
+                   radius = 2,
+                   group = "Vessel 400118") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400061,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400061,]$labels,
+                   radius = 2,
+                   group = "Vessel 400061") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400081,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400081,]$labels,
+                   radius = 2,
+                   group = "Vessel 400081") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400133,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400133,]$labels,
+                   radius = 2,
+                   group = "Vessel 400133") %>%
+    addCircleMarkers(data = palangre97_18[palangre97_18$CBU_ORAC == 400512,],
+                   lng = ~startlondd,
+                   lat = ~startlatdd,
+                   clusterOptions = NULL,
+                   color = ~pal(P_X6),
+                   label = palangre97_18[palangre97_18$CBU_ORAC == 400512,]$labels,
+                   radius = 2,
+                   group = "Vessel 400512") %>%
+    addLegend(position = "bottomright",
+              pal = pal,
+              values = ~P_X6,
+              title = "Proportion of catch that is pink cusk-eel",
+              opacity = 1)) %>%
+    addLayersControl(
+    overlayGroups = c("Vessel 400065", "Vessel 400062", "Vessel 400075",
+                      "Vessel 400082", "Vessel 400088", "Vessel 400118",
+                      "Vessel 400061", "Vessel 400081", "Vessel 400133",
+                      "Vessel 400512"),
+    options = layersControlOptions(collapsed = FALSE)
+    )
+```
+
+## Catch Composition: What are the most common species?
+
+What are the highest proportions of species across the different hauls?
+
+```{r}
+
+palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(CBU_ORAC, Year) %>%
+  arrange(desc(peso)) %>%
+  distinct(species_code, .keep_all = TRUE) %>%
+  slice_max(order_by = peso, n = 5) %>%
+  ungroup() %>%
+  select(species_code) %>%
+  unique()
+
+```
+
+Organized by proportion
+
+```{r}
+
+palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(CBU_ORAC, Year) %>%
+  arrange(desc(prop)) %>%
+  distinct(species_code, .keep_all = TRUE) %>%
+  slice_max(order_by = prop, n = 5) %>%
+  ungroup() %>%
+  select(species_code) %>%
+  unique()
+```
+
+2. How often do species come up in the hauls? Presence/Absence
+
+```{r}
+
+palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+```
+```{r}
+species_list <- palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  select(species_code)
+
+
+species_list_100 <- palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  filter(n >= 100) %>%
+  arrange(desc(n)) %>%
+  select(species_code)
+
+species_list_1000 <- palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  filter(n >= 1000) %>%
+  arrange(desc(n)) %>%
+  select(species_code)
+
+
+species_list_10000 <- palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0) %>%
+  group_by(species_code) %>%
+  summarise(n = n()) %>%
+  filter(n >= 10000) %>%
+  arrange(desc(n)) %>%
+  select(species_code)
+```
+
+```{r}
+
+palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0, species_code %in% c(species_list_10000$species_code)) %>%
+  group_by(Year, species_code) %>%
+  summarise(species_weight = sum(peso)) %>%
+  ggplot() +
+  geom_area(aes(x = Year, y = species_weight, fill = species_code, group = species_code), alpha = 0.7) +
+  scale_color_viridis_d() +
+  labs(fill = "Species Code",
+       y = "Species Weight (kg)")
+
+```
+
+```{r}
+
+palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(species_code %in% species_list_1000$species_code) %>%
+  filter(peso > 0, !(species_code %in% c(species_list_10000$species_code))) %>%
+  group_by(Year, species_code) %>%
+  summarise(species_weight = sum(peso)) %>%
+  ggplot() +
+  geom_area(aes(x = Year, y = species_weight, fill = species_code, group = species_code), alpha = 0.7) +
+  scale_color_viridis_d() +
+  labs(fill = "Species Code",
+       y = "Species Weight (kg)")
+
+```
+
+How does the weight of congrio dorado and merluza_comun/meluza_del_sur vary in hauls?
+
+
+```{r}
+
+palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(Total.de.peso > 0, Total.de.peso < 20000, species_code %in% c("X2", "X6")) %>%
+  ggplot(aes(x = peso, y = as.factor(species_code), fill = as.factor(species_code))) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Weight (1000 kgs)", 
+       fill = "Species") +
+  facet_wrap(~Year) +
+  scale_x_continuous(breaks = c(0, 5000, 10000, 15000, 20000), labels = c("0", "5", "10", "15", "20"))
+```
+What is the range in the min depth?
+
+```{r}
+palangre97_18 %>%
+  filter(Total.de.peso > 0 & Total.de.peso < 20000,
+         zmin < 2500) %>%
+  ggplot(aes(x = zmin, y = CBU_ORAC)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Min Depth (m)") 
+```
+
+What is the range in the max depth?
+
+```{r}
+palangre97_18 %>%
+  filter(Total.de.peso > 0 & Total.de.peso < 20000,
+         zmax < 2500) %>%
+  ggplot(aes(x = zmax, y = CBU_ORAC)) +
+  geom_density_ridges(alpha = 0.75) +
+  scale_fill_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Min Depth (m)") 
+```
+
+
+Looking at the hauls and filtering out only the groups that have the most:
+
+```{r}
+
+palangre97_18 %>%
+  select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate(prop = peso/Total.de.peso) %>%
+  filter(peso > 0, species_code %in% c(species_list_10000$species_code), CBU_ORAC %in% c(unique(longline$vessel_code))) %>%
+  ggplot(aes(x = prop, y = CBU_ORAC, fill = species_code)) +
+  ggridges::geom_density_ridges(alpha = 0.5) +
+  scale_color_viridis_d() +
+  labs(y = "Vessel Code",
+       x = "Proportion of Catch",
+       fill = "Species Code")
+  
+```
+

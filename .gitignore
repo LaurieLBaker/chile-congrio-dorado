@@ -5,6 +5,7 @@
 # Data set
 
 data/*.xlsx
+data/*.csv
 
 # Session Data files
 .RData
