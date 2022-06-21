@@ -43,6 +43,8 @@ palangre87_97 <- read_csv("data/palangre_87_97 - palangre_87_97.csv")
 
 palangre97_18 <- read_csv("data/palangre_97_18 - palangre_97_18.csv")
 
+species_key <- readxl::read_xlsx("data/Maestro especies actualizado.xlsx")
+
 ```
 
 
@@ -824,6 +826,7 @@ palangre87_97 %>%
 
 
 ```{r location data prep 87 to 97}
+
 palangre87_97 <- palangre87_97 %>%
   mutate(startlatdd = -latcalini/10000,
          startlondd = -loncalini/10000,
@@ -947,6 +950,8 @@ What are the highest proportions of species across the different hauls?
 palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
   pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%
+  left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(CBU_ORAC, Year) %>%
@@ -954,7 +959,7 @@ palangre87_97 %>%
   distinct(species_code, .keep_all = TRUE) %>%
   slice_max(order_by = peso, n = 5) %>%
   ungroup() %>%
-  select(species_code) %>%
+  select(species_code, NOMBRE_COMUN) %>%
   unique()
 
 ```
@@ -965,7 +970,9 @@ Organized by proportion
 
 palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>% 
+  mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>% 
+  left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(CBU_ORAC, Year) %>%
@@ -973,7 +980,7 @@ palangre87_97 %>%
   distinct(species_code, .keep_all = TRUE) %>%
   slice_max(order_by = prop, n = 5) %>%
   ungroup() %>%
-  select(species_code) %>%
+  select(species_code, NOMBRE_COMUN) %>%
   unique()
 ```
 
@@ -983,10 +990,10 @@ palangre87_97 %>%
 
 palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
-  group_by(species_code) %>%
+  group_by(NOMBRE_COMUN) %>%
   summarise(n = n()) %>%
   arrange(desc(n))
 
@@ -994,7 +1001,7 @@ palangre87_97 %>%
 ```{r}
 species_list <- palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(species_code) %>%
@@ -1006,6 +1013,8 @@ species_list <- palangre87_97 %>%
 species_list_100 <- palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
   pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>% 
+  left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(species_code) %>%
@@ -1016,7 +1025,7 @@ species_list_100 <- palangre87_97 %>%
 
 species_list_1000 <- palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(species_code) %>%
@@ -1029,6 +1038,7 @@ species_list_1000 <- palangre87_97 %>%
 species_list_10000 <- palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
   pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(species_code) %>%
@@ -1042,15 +1052,15 @@ species_list_10000 <- palangre87_97 %>%
 
 palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0, species_code %in% c(species_list_10000$species_code)) %>%
-  group_by(Year, species_code) %>%
+  group_by(Year, NOMBRE_COMUN) %>%
   summarise(species_weight = sum(peso)) %>%
   ggplot() +
-  geom_area(aes(x = Year, y = species_weight, fill = species_code, group = species_code), alpha = 0.7) +
+  geom_area(aes(x = Year, y = species_weight, fill = NOMBRE_COMUN, group = NOMBRE_COMUN), alpha = 0.7) +
   scale_color_viridis_d() +
-  labs(fill = "Species Code",
+  labs(fill = "Species",
        y = "Species Weight (kg)")
 
 ```
@@ -1058,16 +1068,18 @@ palangre87_97 %>%
 
 palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   
+  mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   
+  left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(species_code %in% species_list_1000$species_code) %>%
   filter(peso > 0, !(species_code %in% c(species_list_10000$species_code))) %>%
-  group_by(Year, species_code) %>%
+  group_by(Year, NOMBRE_COMUN) %>%
   summarise(species_weight = sum(peso)) %>%
   ggplot() +
-  geom_area(aes(x = Year, y = species_weight, fill = species_code, group = species_code), alpha = 0.7) +
+  geom_area(aes(x = Year, y = species_weight, fill = NOMBRE_COMUN, group = NOMBRE_COMUN), alpha = 0.7) +
   scale_color_viridis_d() +
-  labs(fill = "Species Code",
+  labs(fill = "Species",
        y = "Species Weight (kg)")
 
 ```
@@ -1079,10 +1091,10 @@ How does the weight of congrio dorado and merluza_comun/meluza_del_sur vary in h
 
 palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(Total.de.peso > 0, Total.de.peso < 20000, species_code %in% c("X2", "X6")) %>%
-  ggplot(aes(x = peso, y = as.factor(species_code), fill = as.factor(species_code))) +
+  ggplot(aes(x = peso, y = as.factor(NOMBRE_COMUN), fill = as.factor(NOMBRE_COMUN))) +
   geom_density_ridges(alpha = 0.75) +
   scale_fill_viridis_d() +
   labs(y = "Vessel Code",
@@ -1124,10 +1136,10 @@ Looking at the hauls and filtering out only the groups that have the most:
 
 palangre87_97 %>%
   select(CBU_ORAC, crucero, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0, species_code %in% c(species_list_10000$species_code), CBU_ORAC %in% c(unique(longline$vessel_code))) %>%
-  ggplot(aes(x = prop, y = CBU_ORAC, fill = species_code)) +
+  ggplot(aes(x = prop, y = CBU_ORAC, fill = NOMBRE_COMUN)) +
   ggridges::geom_density_ridges(alpha = 0.5) +
   scale_color_viridis_d() +
   labs(y = "Vessel Code",
@@ -1400,7 +1412,7 @@ What are the highest proportions of species across the different hauls?
 
 palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(CBU_ORAC, Year) %>%
@@ -1408,7 +1420,7 @@ palangre97_18 %>%
   distinct(species_code, .keep_all = TRUE) %>%
   slice_max(order_by = peso, n = 5) %>%
   ungroup() %>%
-  select(species_code) %>%
+  select(NOMBRE_COMUN) %>%
   unique()
 
 ```
@@ -1419,7 +1431,7 @@ Organized by proportion
 
 palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(CBU_ORAC, Year) %>%
@@ -1427,7 +1439,7 @@ palangre97_18 %>%
   distinct(species_code, .keep_all = TRUE) %>%
   slice_max(order_by = prop, n = 5) %>%
   ungroup() %>%
-  select(species_code) %>%
+  select(NOMBRE_COMUN) %>%
   unique()
 ```
 
@@ -1437,10 +1449,10 @@ palangre97_18 %>%
 
 palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
-  group_by(species_code) %>%
+  group_by(NOMBRE_COMUN) %>%
   summarise(n = n()) %>%
   arrange(desc(n))
 
@@ -1448,7 +1460,7 @@ palangre97_18 %>%
 ```{r}
 species_list <- palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(species_code) %>%
@@ -1459,7 +1471,7 @@ species_list <- palangre97_18 %>%
 
 species_list_100 <- palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(species_code) %>%
@@ -1470,7 +1482,7 @@ species_list_100 <- palangre97_18 %>%
 
 species_list_1000 <- palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(species_code) %>%
@@ -1482,7 +1494,7 @@ species_list_1000 <- palangre97_18 %>%
 
 species_list_10000 <- palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0) %>%
   group_by(species_code) %>%
@@ -1496,13 +1508,13 @@ species_list_10000 <- palangre97_18 %>%
 
 palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0, species_code %in% c(species_list_10000$species_code)) %>%
-  group_by(Year, species_code) %>%
+  group_by(Year, NOMBRE_COMUN) %>%
   summarise(species_weight = sum(peso)) %>%
   ggplot() +
-  geom_area(aes(x = Year, y = species_weight, fill = species_code, group = species_code), alpha = 0.7) +
+  geom_area(aes(x = Year, y = species_weight, fill = NOMBRE_COMUN, group = NOMBRE_COMUN), alpha = 0.7) +
   scale_color_viridis_d() +
   labs(fill = "Species Code",
        y = "Species Weight (kg)")
@@ -1513,14 +1525,14 @@ palangre97_18 %>%
 
 palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(species_code %in% species_list_1000$species_code) %>%
   filter(peso > 0, !(species_code %in% c(species_list_10000$species_code))) %>%
-  group_by(Year, species_code) %>%
+  group_by(Year, NOMBRE_COMUN) %>%
   summarise(species_weight = sum(peso)) %>%
   ggplot() +
-  geom_area(aes(x = Year, y = species_weight, fill = species_code, group = species_code), alpha = 0.7) +
+  geom_area(aes(x = Year, y = species_weight, fill = NOMBRE_COMUN, group = NOMBRE_COMUN), alpha = 0.7) +
   scale_color_viridis_d() +
   labs(fill = "Species Code",
        y = "Species Weight (kg)")
@@ -1534,10 +1546,10 @@ How does the weight of congrio dorado and merluza_comun/meluza_del_sur vary in h
 
 palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(Total.de.peso > 0, Total.de.peso < 20000, species_code %in% c("X2", "X6")) %>%
-  ggplot(aes(x = peso, y = as.factor(species_code), fill = as.factor(species_code))) +
+  ggplot(aes(x = peso, y = as.factor(NOMBRE_COMUN), fill = as.factor(NOMBRE_COMUN))) +
   geom_density_ridges(alpha = 0.75) +
   scale_fill_viridis_d() +
   labs(y = "Vessel Code",
@@ -1579,10 +1591,10 @@ Looking at the hauls and filtering out only the groups that have the most:
 
 palangre97_18 %>%
   select(CBU_ORAC, lance, Year, fecha, Total.de.peso, starts_with(match = "X")) %>%
-  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%
+  pivot_longer(cols = starts_with(match = "X"), names_to = "species_code", values_to = "peso") %>%   mutate("COD_ESPECIE" = as.numeric(substr(species_code, start = 2, stop = 4))) %>%   left_join(species_key, by = "COD_ESPECIE") %>%
   mutate(prop = peso/Total.de.peso) %>%
   filter(peso > 0, species_code %in% c(species_list_10000$species_code), CBU_ORAC %in% c(unique(longline$vessel_code))) %>%
-  ggplot(aes(x = prop, y = CBU_ORAC, fill = species_code)) +
+  ggplot(aes(x = prop, y = CBU_ORAC, fill = NOMBRE_COMUN)) +
   ggridges::geom_density_ridges(alpha = 0.5) +
   scale_color_viridis_d() +
   labs(y = "Vessel Code",
